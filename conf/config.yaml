@@ -1,0 +1,5 @@
+apiServer:
+  listenIP: "127.0.0.1"
+  listenPort: 9160
+  enablePprof: true
+  enableSwagger: true
