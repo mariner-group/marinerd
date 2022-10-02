@@ -1,0 +1,7 @@
+APIServer:
+  # The address on which the API server should listen
+  listenIP: "127.0.0.1"
+  # The port on which the API server should listen
+  listenPort: 9160
+  enablePprof: true
+  enableSwagger: true
