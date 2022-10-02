@@ -1,41 +1,64 @@
 package apiserver
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/emicklei/go-restful/v3"
+	"github.com/spf13/viper"
 )
 
 type APIServer struct {
-	listenIP      string       `yaml:"listenIP"`
-	listenPort    uint32       `yaml:"listenPort"`
-	server        *http.Server `yaml:"-"`
-	enablePprof   bool         `yaml:"enablePprof"`
-	enableSwagger bool         `yaml:"enableSwagger"`
+	server        *http.Server
+	listenIP      string
+	listenPort    int64
+	enableSwagger bool
+	enablePprof   bool
 }
 
-func (s *APIServer) Run() {
-	fmt.Printf("start API server.\n")
-	var err error
-	address := fmt.Sprintf("%v:%v", s.listenIP, s.listenPort)
-	var wsContainer *restful.Container
-	wsContainer, err = s.createRestfulContainer()
-	if err != nil {
-		return
+func (s *APIServer) Initialize() error {
+	s.listenIP = viper.GetString("APIServer.listenIP")
+	s.listenPort = viper.GetInt64("APIServer.listenPort")
+	s.enableSwagger = viper.GetBool("APIServer.enableSwagger")
+	s.enablePprof = viper.GetBool("APIServer.enablePprof")
+	if s.listenIP == "" {
+		return errors.New("listenIP is empty")
 	}
-	server := http.Server{Addr: address, Handler: wsContainer, WriteTimeout: 1 * time.Minute}
-	var ln net.Listener
-	ln, err = net.Listen("tcp", address)
-	if err != nil {
-		fmt.Printf("net listen(%s) err: %s\n", address, err.Error())
-		return
+	if s.listenPort == 0 {
+		return errors.New("listenPort is empty")
 	}
-	s.server = &server
-	err = server.Serve(ln)
-	fmt.Printf("API server stop.")
+	return nil
+}
+
+func (s *APIServer) Stop() error {
+	return nil
+}
+
+func (s *APIServer) Wait() error {
+	return nil
+}
+
+func (s *APIServer) Run() error {
+	container, err := s.createRestfulContainer()
+	if err != nil {
+		return err
+	}
+	s.server = &http.Server{
+		Addr:           fmt.Sprintf("%s:%d", s.listenIP, s.listenPort),
+		Handler:        container,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	listener, err := net.Listen("tcp", s.server.Addr)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Listening on %s", s.server.Addr)
+	return s.server.Serve(listener)
 }
 
 func (s *APIServer) createRestfulContainer() (*restful.Container, error) {
