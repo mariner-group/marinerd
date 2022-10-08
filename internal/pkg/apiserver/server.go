@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/spf13/viper"
 )
@@ -62,5 +63,23 @@ func (s *APIServer) Run() error {
 }
 
 func (s *APIServer) createRestfulContainer() (*restful.Container, error) {
-	return nil, nil
+	container := restful.NewContainer()
+	//container.Filter(s.logRequest)
+	if s.enableSwagger {
+		container.Add(s.createSwaggerService(container))
+	}
+	return container, nil
+}
+
+func (s *APIServer) logRequest(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	chain.ProcessFilter(req, resp)
+}
+
+func (s *APIServer) createSwaggerService(container *restful.Container) *restful.WebService {
+	config := restfulspec.Config{
+		WebServices:                   container.RegisteredWebServices(),
+		APIPath:                       "/apidocs.json",
+		PostBuildSwaggerObjectHandler: enrichSwaggerObject,
+	}
+	return restfulspec.NewOpenAPIService(config)
 }
